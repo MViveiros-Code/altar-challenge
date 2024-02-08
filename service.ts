@@ -4,7 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import pidusage from 'pidusage';
 import circuitBreaker from 'opossum';
-import pino from 'pino';
 import pinoHttp from "pino-http"
 import expressPino from 'express-pino-logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,15 +14,13 @@ import DynamicThrottler from './throttler';
 
 // Initialize express app
 const app = express();
-const port = 3000;
+//const port = 3000;
 
 const Semaphore = require('semaphore');
 const https = require('https');
 const basicAuth = require('express-basic-auth');
 const rateLimit = require('express-rate-limit');
 
-// Create a pino instance
-const logger = pino();
 
 // Authorizer for basic authentication
 const myAuthorizer = (username: string, password: string) => {
@@ -35,7 +32,8 @@ const myAuthorizer = (username: string, password: string) => {
 // Apply a rate limit to prevent more than 1 request per 10 seconds per client
 const limiter = rateLimit({
   windowMs: 10 * 1000, // 10 seconds
-  max: 1, // Limit each IP to x request per windowMs
+  max: 10, // Limit each IP to x request per windowMs
+  message: 'You have exceeded 1 request in 10 seconds limit!', 
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
@@ -63,7 +61,6 @@ app.use((req, res, next) => {
 
 // Initialize express-pino-logger with custom serializers to include the request ID
 app.use(expressPino({
-  //logger,
   serializers: {
     req(req) {
       req.id = req.raw.id;
@@ -232,10 +229,13 @@ app.get('/external-service', async (req, res) => {
 
 // Start server
 // Create HTTPS server
-https.createServer(httpsOptions, app).listen(port, () => {
+/*https.createServer(httpsOptions, app).listen(port, () => {
   console.log(`HTTPS Server running on port ${port}`);
-});
+});*/
 
 /*app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });*/
+
+// Export your app for use in other files, such as tests
+export { app };
