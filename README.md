@@ -1,6 +1,12 @@
 # altar-challenge
 Service BFF File Handler
 
+**-Prepare enviroment by installing dependencies and instal typescript if not already**
+  
+  npm install
+  
+  npm install typescript --save-dev
+  npm install @types/express --save-dev
 
 **-Compiling**
 
