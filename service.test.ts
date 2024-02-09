@@ -1,12 +1,17 @@
 
-import request from 'supertest';
-import { app } from './service'; // Import your Express app
+import request from 'supertest'
+//import { app } from './service'; // Import your Express app
+
+const app = 'https://localhost:3000'
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // upload.test.ts
 describe('Concurrent Uploads', () => {
   it('should handle multiple uploads', async () => {
     const promises = [];
     for (let i = 0; i < 5; i++) {
+      //const promise = request(app)
       const promise = request(app)
         .post('/upload')
         .auth('Admin', '1234')
@@ -21,7 +26,7 @@ describe('Concurrent Uploads', () => {
 
 
 // throttling.test.ts
-/*describe('Dynamic Throttling', () => {
+describe('Dynamic Throttling', () => {
   it('should throttle under high load', async () => {
     // Mock the system metrics to simulate high load
     jest.mock('./systemMetrics', () => ({
@@ -36,10 +41,10 @@ describe('Concurrent Uploads', () => {
       .attach('file', Buffer.alloc(10 * 1024 * 1024), 'test.csv') // Smaller file for this test
       .expect(429); // Assuming 429 is used for throttling response
   });
-});*/
+});
 
 // resilience.test.ts
-/*describe('Service Resilience', () => {
+describe('Service Resilience', () => {
   it('should recover from a file processing failure', async () => {
     // Mock the file processing to throw an error
     jest.mock('./fileProcessor', () => ({
@@ -55,4 +60,4 @@ describe('Concurrent Uploads', () => {
       .attach('file', Buffer.alloc(1 * 1024 * 1024), 'test.csv') // Use a smaller file for this test
       .expect(500); // Assuming your service responds with 500 on processing errors
   });
-});*/
+});

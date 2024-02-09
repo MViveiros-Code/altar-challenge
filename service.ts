@@ -101,16 +101,31 @@ const upload = multer({
   limits: { fileSize: 300 * 1024 * 1024 }, // 250 MB
 });
 
-const breakerOptions = {
+// Configure circuit breaker options
+const options = {
   timeout: 5000, // If our function takes longer than 5 seconds, trigger a failure
   errorThresholdPercentage: 50, // If 50% of requests fail, open the circuit
-  resetTimeout: 10000, // After 10 seconds, try to close the circuit
+  resetTimeout: 10000, // After 10 seconds, try again.
 };
 
-const breaker = new circuitBreaker(() => retryOperation(callExternalService, 3, 500), breakerOptions);
-breaker.fallback(() => 'Service Unavailable'); // Fallback function if the circuit is open
-breaker.on('open', () => console.log('Circuit opened'));
-breaker.on('close', () => console.log('Circuit closed'));
+// File processing function to be wrapped by the circuit breaker
+async function processFile(req: express.Request, res: express.Response) {
+  return new Promise((resolve, reject) => {
+    // Simulate file processing with a setTimeout
+    setTimeout(() => {
+      // Here, replace with actual file processing logic and decide to resolve or reject based on the outcome
+      resolve(`File ${req.file?.originalname} is being processed.`);
+    }, 1000);
+  });
+}
+
+// Create the circuit breaker with your file processing function and options
+const breaker = new circuitBreaker(processFile, options);
+
+// Optionally, listen to circuit breaker events for monitoring or logging
+breaker.on('open', () => console.log('Circuit breaker opened'));
+breaker.on('close', () => console.log('Circuit breaker closed'));
+breaker.on('halfOpen', () => console.log('Circuit breaker half open'));
 
 // Placeholder function for checking the health of an external resources
 // Replace this with actual health check logic for your external dependencies
@@ -124,37 +139,6 @@ async function checkExternalHealth(): Promise<boolean> {
   });
 }
 
-async function retryOperation(operation: () => Promise<any>, retries: number = 3, backoff: number = 500): Promise<any> {
-  let lastError: Error = {name:'', message:''};
-
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      // Wait for a bit before retrying (exponential backoff)
-      await new Promise((resolve) => setTimeout(resolve, backoff * Math.pow(2, i)));
-    }
-  }
-
-  throw lastError;
-}
-
-async function callExternalService() {
-  // This is a placeholder function. Replace it with the actual call to your external service.
-  return new Promise((resolve, reject) => {
-    // Simulate a network request
-    setTimeout(() => {
-      const failed = Math.random() > 0.5; // 50% chance of failure
-      if (failed) {
-        reject(new Error('Failed to call external service'));
-      } else {
-        resolve('Success');
-      }
-    }, 100);
-  });
-}
-
 
 // Define a route for uploads
 app.post('/upload', upload.single('file'), async (req, res) => {
@@ -163,7 +147,23 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     return res.status(400).send('No file uploaded.');
   }
   // Acquire a semaphore slot before processing the file
-  semaphore.take(async () => {
+  semaphore.take(() => {
+    breaker.fire(req, res)
+      .then((message) => {
+        res.send(message);
+      })
+      .catch((error) => {
+        req.log.error({ reqId: req.id, err: error }, 'Failed to process file or circuit breaker opened');
+        res.status(500).send('Failed to process file or service is currently unavailable.');
+      })
+      .finally(() => {
+        semaphore.leave();
+      });
+  });
+
+
+
+  /*semaphore.take(async () => {
     try {
         req.log.info({ reqId: req.id, fileName: req.file?.originalname }, 'File upload started');
 
@@ -180,7 +180,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       // Ensure the semaphore is released once processing is done or if an error occurs
       semaphore.leave();
     }
-  });
+  });*/
   
 });
 
@@ -217,25 +217,6 @@ app.get('/health', async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve health status." });
   }
 });
-
-app.get('/external-service', async (req, res) => {
-  try {
-    const result = await breaker.fire();
-    res.json({ result });
-  } catch (error) {
-    res.status(503).json({ error: 'Service temporarily unavailable.' });
-  }
-});
-
-// Start server
-// Create HTTPS server
-/*https.createServer(httpsOptions, app).listen(port, () => {
-  console.log(`HTTPS Server running on port ${port}`);
-});*/
-
-/*app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});*/
 
 // Export your app for use in other files, such as tests
 export { app };
