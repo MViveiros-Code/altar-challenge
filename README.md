@@ -13,13 +13,13 @@ Service BFF File Handler
 
   npx tsc
 
-**-Executing tests**
-  
-  npm test
-
 **-Executing server (port 3000)**
   
   node server.js
+
+**-Executing tests (depends on server eunning in port 3000)**
+  
+  npm test
 
 **-Generating dummy csv file ~250MB to folder teste (folder needs to exist)**
   
