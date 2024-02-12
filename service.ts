@@ -98,8 +98,9 @@ const storage = multer.diskStorage({
 // Initialize upload middleware with storage engine and file size limit
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 300 * 1024 * 1024 }, // 250 MB
+  limits: { fileSize: 260 * 1024 * 1024 }, // 260 MB
 });
+
 
 // Configure circuit breaker options
 const options = {
@@ -160,28 +161,6 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         semaphore.leave();
       });
   });
-
-
-
-  /*semaphore.take(async () => {
-    try {
-        req.log.info({ reqId: req.id, fileName: req.file?.originalname }, 'File upload started');
-
-      // Simulate file processing
-      // Replace this with your actual file processing logic
-      setTimeout(() => {
-        req.log.info({ reqId: req.id, fileName: req.file?.originalname }, 'File processing completed');
-        res.send(`File ${req.file?.originalname} is being processed.`);
-      }, 1000); // Simulate processing delay
-    } catch (error) {
-      req.log.error({ reqId: req.id, err: error }, 'Failed to process file');
-      res.status(500).send('Failed to process file.');
-    } finally {
-      // Ensure the semaphore is released once processing is done or if an error occurs
-      semaphore.leave();
-    }
-  });*/
-  
 });
 
 //returns current health 
@@ -197,7 +176,7 @@ app.get('/health', async (req, res) => {
         // Convert bytes to MB for readability
         rss: stats.memory / 1024 / 1024, // Resident Set Size
         rss2 : memory.rss / 1024 / 1024, // Resident Set Size
-		heapTotal: memory.heapTotal / 1024 / 1024, // V8's total available memory
+		    heapTotal: memory.heapTotal / 1024 / 1024, // V8's total available memory
         heapUsed: memory.heapUsed / 1024 / 1024, // V8's used memory
       },
       externalDependencies: {
